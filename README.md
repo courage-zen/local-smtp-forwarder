@@ -82,8 +82,9 @@ swaks --to user@example.com --from me@local --server 127.0.0.1:2525 --body "hell
 
 ## Docker
 
-The included `Dockerfile` is a runtime-only stage that copies a pre-built
-`linux/arm64` binary into an Alpine image. Build the binary first, then:
+The `Dockerfile` is a multi-stage build: `golang:1.23-alpine` compiles a
+static binary from source, then copies it into a minimal `alpine:3.20`
+runtime image as non-root user. No pre-built binary needed on the host.
 
 ```bash
 docker build -t local-smtp-forwarder .
@@ -95,6 +96,28 @@ docker run --rm -p 2525:2525 \
   -e MAILER_UPSTREAM_USERNAME=user@gmail.com \
   -e MAILER_UPSTREAM_PASSWORD=app-password \
   local-smtp-forwarder
+```
+
+### Pre-built images
+
+Multi-arch images (`linux/amd64` + `linux/arm64`) are built by GitHub Actions
+and published to GHCR on every push to `main` and every `v*` tag:
+
+```bash
+docker pull ghcr.io/courage-zen/local-smtp-forwarder:latest
+# or a specific version
+docker pull ghcr.io/courage-zen/local-smtp-forwarder:v1.0.0
+```
+
+### Releases (offline image bundles)
+
+Pushing a `v*` tag creates a GitHub Release with the image attached as
+`.tar.gz` per architecture — usable on hosts without registry access:
+
+```bash
+# Download from https://github.com/courage-zen/local-smtp-forwarder/releases
+docker load < local-smtp-forwarder-v1.0.0-linux-amd64.tar.gz
+docker load < local-smtp-forwarder-v1.0.0-linux-arm64.tar.gz
 ```
 
 ## Project layout
