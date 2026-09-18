@@ -32,7 +32,7 @@ func NewRelay(cfg UpstreamConfig) *Relay {
 }
 
 // loginAuth implements SMTP AUTH LOGIN (RFC 4954). Used as a fallback when the
-// upstream server does not support AUTH PLAIN (e.g. smtp.example.com).
+// upstream server does not support AUTH PLAIN (e.g. some corporate SMTP relays).
 type loginAuth struct {
 	username string
 	password string
@@ -133,7 +133,7 @@ func (r *Relay) Send(from string, to []string, data []byte) error {
 	defer c.Close()
 
 	// Authenticate — try PLAIN first, fall back to LOGIN if the server rejects
-	// PLAIN (e.g. smtp.example.com only supports AUTH LOGIN).
+	// PLAIN (e.g. some corporate SMTP relays only support AUTH LOGIN).
 	if r.username != "" {
 		plainErr := c.Auth(smtp.PlainAuth("", r.username, r.password, r.host))
 		if plainErr != nil {
