@@ -1,0 +1,10 @@
+# Local SMTP server settings (what your app connects to)
+listen: "127.0.0.1:2525"
+
+# Upstream SMTP relay (actually sends the email)
+upstream:
+  host: "smtp.gmail.com"       # 发送邮件的SMTP主机
+  port: 587                     # 发送邮件的端口 (587=STARTTLS, 465=implicit TLS)
+  username: "user@gmail.com"   # 账号
+  password: "app-password"     # 密码 (Gmail需使用App Password)
+  tls: "starttls"              # "starttls" | "implicit" | "none"

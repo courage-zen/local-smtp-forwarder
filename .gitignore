@@ -1,0 +1,14 @@
+# Binaries
+local-smtp-forwarder
+local-smtp-forwarder-linux-*
+multica-mailer
+multica-mailer-linux-*
+
+# Config with credentials
+config.yaml
+
+# Internal k8s deployment (contains internal infra references)
+deploy/
+
+# Go
+vendor/
