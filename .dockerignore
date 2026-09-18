@@ -1,0 +1,16 @@
+# Build context excludes — keep the image lean and avoid leaking local config.
+deploy/
+*.yaml
+!config.example.yaml
+
+# Pre-built binaries (build happens inside the image now).
+local-smtp-forwarder
+local-smtp-forwarder-linux-*
+multica-mailer
+multica-mailer-linux-*
+
+# Git / CI / misc
+.git/
+.gitignore
+Makefile
+README.md

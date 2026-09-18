@@ -1,14 +1,23 @@
-# Runtime stage — pin linux/arm64 to match the k8s arm64 node pool (same as bigdata-mcp).
-# Uses the public alpine image from Docker Hub.
-FROM --platform=linux/arm64 alpine:3.20
+# Build stage — compile a static binary from source.
+# TARGETOS / TARGETARCH are injected by buildx for multi-platform builds.
+FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS builder
 
-# ca-certificates.crt is already present in the base alpine image.
-# Create a non-root user to run the mailer.
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags='-s -w' -o /out/local-smtp-forwarder .
+
+# Runtime stage — minimal Alpine, non-root user, no shell useful for the app.
+FROM alpine:3.20
+
 RUN adduser -D -u 10001 mailer
 
-# Pre-built arm64 linux binary (cross-compiled on the dev machine, static, stripped).
-COPY local-smtp-forwarder-linux-arm64 /usr/local/bin/local-smtp-forwarder
-RUN chmod +x /usr/local/bin/local-smtp-forwarder
+COPY --from=builder /out/local-smtp-forwarder /usr/local/bin/local-smtp-forwarder
 
 USER mailer
 EXPOSE 2525
