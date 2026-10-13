@@ -1,6 +1,7 @@
 # Build stage — compile a static binary from source.
-# TARGETOS / TARGETARCH are injected by buildx for multi-platform builds.
-FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS builder
+# Without --platform=$BUILDPLATFORM, buildx runs the builder per target
+# platform (arm64 via QEMU). This ensures GOARCH matches the target.
+FROM golang:1.23-alpine AS builder
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
