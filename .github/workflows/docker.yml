@@ -89,10 +89,13 @@ jobs:
           tag="${GITHUB_REF_NAME}"   # e.g. v1.0.0
           ref="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
           for arch in amd64 arm64; do
-            # Pull the arch-specific manifest digest, save it, gzip it.
+            # Pull the arch-specific manifest digest, tag it with a clear name,
+            # then save so `docker load` preserves the repository:tag label.
             digest=$(docker buildx imagetools inspect "${ref}" --format "{{range .Manifest.Manifests}}{{if eq .Platform.Architecture \"${arch}\"}}{{.Digest}}{{end}}{{end}}")
+            local_tag="local-smtp-forwarder:${tag}-${arch}"
             docker pull "${ref}@${digest}"
-            docker save "${ref}@${digest}" | gzip > "local-smtp-forwarder-${tag}-linux-${arch}.tar.gz"
+            docker tag "${ref}@${digest}" "${local_tag}"
+            docker save "${local_tag}" | gzip > "local-smtp-forwarder-${tag}-linux-${arch}.tar.gz"
             echo "asset-${arch}=local-smtp-forwarder-${tag}-linux-${arch}.tar.gz" >> "$GITHUB_OUTPUT"
           done
 
