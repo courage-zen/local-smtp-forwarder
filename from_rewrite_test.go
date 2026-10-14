@@ -81,6 +81,86 @@ func TestRewriteFromHeader(t *testing.T) {
 			mapping:      mapping,
 			want:         "From: Bob <bob@example.com>\nSubject: hi\n\nbody",
 		},
+		{
+			name:         "missing From header + envelope mapped -> synthesized",
+			data:         "Subject: hi\r\n\r\nbody",
+			envelopeFrom: "alice@example.com",
+			mapping:      mapping,
+			want:         "From: =?utf-8?B?5byg5LiJ?= <alice@example.com>\r\nSubject: hi\r\n\r\nbody",
+		},
+		{
+			name:         "missing From header + envelope unmapped -> unchanged (core premise)",
+			data:         "Subject: hi\r\n\r\nbody",
+			envelopeFrom: "carol@example.com",
+			mapping:      mapping,
+			want:         "Subject: hi\r\n\r\nbody",
+		},
+		{
+			name:         "missing From header + unparseable envelope -> unchanged",
+			data:         "Subject: hi\r\n\r\nbody",
+			envelopeFrom: "not an address",
+			mapping:      mapping,
+			want:         "Subject: hi\r\n\r\nbody",
+		},
+		{
+			name:         "missing From header + empty envelope -> unchanged",
+			data:         "Subject: hi\r\n\r\nbody",
+			envelopeFrom: "",
+			mapping:      mapping,
+			want:         "Subject: hi\r\n\r\nbody",
+		},
+		{
+			name:         "folded From header -> rewritten, other headers/body untouched",
+			data:         "From:\r\n alice@example.com\r\nSubject: hi\r\n\r\nbody",
+			envelopeFrom: "alice@example.com",
+			mapping:      mapping,
+			want:         "From: =?utf-8?B?5byg5LiJ?= <alice@example.com>\r\nSubject: hi\r\n\r\nbody",
+		},
+		{
+			name:         "multi-address From, first matches -> first rewritten, rest preserved",
+			data:         "From: <alice@example.com>, Carol <carol@example.com>\r\nSubject: hi\r\n\r\nbody",
+			envelopeFrom: "alice@example.com",
+			mapping:      mapping,
+			want:         "From: =?utf-8?B?5byg5LiJ?= <alice@example.com>, \"Carol\" <carol@example.com>\r\nSubject: hi\r\n\r\nbody",
+		},
+		{
+			name:         "multi-address From, first does not match -> whole header unchanged (core premise)",
+			data:         "From: Carol <carol@example.com>, <alice@example.com>\r\nSubject: hi\r\n\r\nbody",
+			envelopeFrom: "alice@example.com",
+			mapping:      mapping,
+			want:         "From: Carol <carol@example.com>, <alice@example.com>\r\nSubject: hi\r\n\r\nbody",
+		},
+		{
+			name:         "malformed From -> unchanged, no panic (fail open)",
+			data:         "From: \"unclosed quote <broken\r\nSubject: hi\r\n\r\nbody",
+			envelopeFrom: "",
+			mapping:      mapping,
+			want:         "From: \"unclosed quote <broken\r\nSubject: hi\r\n\r\nbody",
+		},
+		{
+			name:         "unquoted display name equal to email -> unparseable, unchanged (fail open)",
+			data:         "From: alice@example.com <alice@example.com>\r\nSubject: hi\r\n\r\nbody",
+			envelopeFrom: "",
+			mapping:      mapping,
+			want:         "From: alice@example.com <alice@example.com>\r\nSubject: hi\r\n\r\nbody",
+		},
+		{
+			name:         "no header/body split -> unchanged",
+			data:         "From: alice@example.com",
+			envelopeFrom: "alice@example.com",
+			mapping:      mapping,
+			want:         "From: alice@example.com",
+		},
+		{
+			// Header block has no From; envelope is mapped, so one is
+			// synthesized. The From: line inside the body must stay untouched
+			// (the header scan stops at the blank line).
+			name:         "body containing From: line -> body untouched, header synthesized",
+			data:         "Subject: hi\r\n\r\nFrom: alice@example.com\r\nnot a header",
+			envelopeFrom: "alice@example.com",
+			mapping:      mapping,
+			want:         "From: =?utf-8?B?5byg5LiJ?= <alice@example.com>\r\nSubject: hi\r\n\r\nFrom: alice@example.com\r\nnot a header",
+		},
 	}
 
 	for _, tt := range tests {

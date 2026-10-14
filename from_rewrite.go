@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"net/mail"
 	"strings"
@@ -64,27 +65,32 @@ func rewriteFromHeader(data []byte, envelopeFrom string, mapping map[string]stri
 			b = append(b, nl...)
 		}
 	}
+	// head ends with the last header line's line ending; sep is the rest of
+	// the blank line, so head+sep+body reassembles the original message.
+	b = append(b, nl...)
 	b = append(b, sep...)
 	b = append(b, body...)
 	return b, true
 }
 
 // splitMessage splits data into header block, separator ("\r\n\r\n" or
-// "\n\n"), and body at the first blank line. ok is false when there is no
+// "\n\n"), and body at the first blank line. The header block includes the
+// line ending of the last header line; the separator is the remaining part
+// of the blank line, so head+sep+body == data. ok is false when there is no
 // header/body split (treat as opaque, forward as-is).
 func splitMessage(data []byte) (head, sep, body []byte, ok bool) {
-	if i := strings.Index(string(data), "\r\n\r\n"); i != -1 {
-		return data[:i+2], data[i : i+4], data[i+4:], true
+	if i := bytes.Index(data, []byte("\r\n\r\n")); i != -1 {
+		return data[:i+2], data[i+2 : i+4], data[i+4:], true
 	}
-	if i := strings.Index(string(data), "\n\n"); i != -1 {
-		return data[:i+1], data[i : i+2], data[i+2:], true
+	if i := bytes.Index(data, []byte("\n\n")); i != -1 {
+		return data[:i+1], data[i+1 : i+2], data[i+2:], true
 	}
 	return nil, nil, nil, false
 }
 
 // detectNewline returns the line ending used in the header block.
 func detectNewline(head []byte) string {
-	if strings.Index(string(head), "\r\n") != -1 {
+	if bytes.Index(head, []byte("\r\n")) != -1 {
 		return "\r\n"
 	}
 	return "\n"
@@ -205,7 +211,12 @@ func addMissingFrom(data, head, sep, body []byte, nl, envelopeFrom string, mappi
 		return data, false
 	}
 	newFrom := formatFromHeader(display, addr.Address, "")
-	b := make([]byte, 0, len(head)+len(sep)+len(body)+len(newFrom)+len(nl))
+	// head ends with the last header line's line ending; inserting the new
+	// From header before head requires putting the line ending after the new
+	// line instead. A fresh buffer is required: head/sep/body alias data, and
+	// the prepend would overwrite head before it is copied.
+	need := len(newFrom) + len(nl) + len(head) + len(sep) + len(body)
+	b := make([]byte, 0, need)
 	b = append(b, newFrom...)
 	b = append(b, nl...)
 	b = append(b, head...)
