@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -12,6 +13,10 @@ import (
 type Config struct {
 	Listen   string         `yaml:"listen"`
 	Upstream UpstreamConfig `yaml:"upstream"`
+	// FromDisplayNames maps sender email addresses (lowercased at load) to
+	// the display name to set on the From header when it is missing or bare.
+	// File-only: there is no env override for this mapping.
+	FromDisplayNames map[string]string `yaml:"from_display_names"`
 }
 
 // UpstreamConfig holds the real SMTP relay settings that actually deliver email.
@@ -50,6 +55,8 @@ func LoadConfig() (*Config, error) {
 		if err := yaml.Unmarshal(data, cfg); err != nil {
 			return nil, fmt.Errorf("parse config %s: %w", path, err)
 		}
+		// Lowercase mapping keys so lookups are case-insensitive.
+		cfg.FromDisplayNames = lowerKeyMap(cfg.FromDisplayNames)
 	}
 
 	// Env-var overrides (take precedence over file).
@@ -86,4 +93,17 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// lowerKeyMap returns a copy of m with all keys lowercased. A nil map
+// returns nil.
+func lowerKeyMap(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[strings.ToLower(k)] = v
+	}
+	return out
 }
