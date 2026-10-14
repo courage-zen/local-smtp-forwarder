@@ -79,11 +79,16 @@ func rewriteFromHeader(data []byte, envelopeFrom string, mapping map[string]stri
 // of the blank line, so head+sep+body == data. ok is false when there is no
 // header/body split (treat as opaque, forward as-is).
 func splitMessage(data []byte) (head, sep, body []byte, ok bool) {
-	if i := bytes.Index(data, []byte("\r\n\r\n")); i != -1 {
-		return data[:i+2], data[i+2 : i+4], data[i+4:], true
+	crlf := bytes.Index(data, []byte("\r\n\r\n"))
+	lf := bytes.Index(data, []byte("\n\n"))
+	// Take whichever blank line comes first: a bare-LF message whose body
+	// contains \r\n\r\n (e.g. a forwarded MIME part) must still split at the
+	// real header/body separator.
+	if crlf != -1 && (lf == -1 || crlf < lf) {
+		return data[:crlf+2], data[crlf+2 : crlf+4], data[crlf+4:], true
 	}
-	if i := bytes.Index(data, []byte("\n\n")); i != -1 {
-		return data[:i+1], data[i+1 : i+2], data[i+2:], true
+	if lf != -1 {
+		return data[:lf+1], data[lf+1 : lf+2], data[lf+2:], true
 	}
 	return nil, nil, nil, false
 }

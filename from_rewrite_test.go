@@ -152,14 +152,14 @@ func TestRewriteFromHeader(t *testing.T) {
 			want:         "From: alice@example.com",
 		},
 		{
-			// Header block has no From; envelope is mapped, so one is
-			// synthesized. The From: line inside the body must stay untouched
-			// (the header scan stops at the blank line).
-			name:         "body containing From: line -> body untouched, header synthesized",
-			data:         "Subject: hi\r\n\r\nFrom: alice@example.com\r\nnot a header",
+			// Bare-LF headers; the body itself contains \r\n\r\n (e.g. a
+			// forwarded MIME part). The split must happen at the FIRST blank
+			// line (the real header/body separator), not inside the body.
+			name:         "LF headers + CRLF blank line inside body -> split at first blank line",
+			data:         "From: alice@example.com\nSubject: s\n\nbody-with\r\n\r\ncrlf-inside",
 			envelopeFrom: "alice@example.com",
 			mapping:      mapping,
-			want:         "From: =?utf-8?B?5byg5LiJ?= <alice@example.com>\r\nSubject: hi\r\n\r\nFrom: alice@example.com\r\nnot a header",
+			want:         "From: =?utf-8?B?5byg5LiJ?= <alice@example.com>\nSubject: s\n\nbody-with\r\n\r\ncrlf-inside",
 		},
 	}
 
