@@ -19,6 +19,10 @@ mail reaches the upstream relay.
 
 ## Requirements
 
+**Core premise: no message is ever modified unless its sender email matches a
+`from_display_names` entry. Every code path begins with this lookup; any miss
+(or an empty/absent mapping) returns the message untouched, byte-for-byte.**
+
 1. Exact-match mapping table in config: `from_display_names`, keyed by email
    address (case-insensitive match), value is the display name.
 2. Only rewrite when the email address is in the mapping AND the current
@@ -88,6 +92,11 @@ func rewriteFromHeader(data []byte, mapping map[string]string) []byte
 
 Behavior:
 
+0. **Gate: if the mapping is empty, or the parsed first From address's email
+   (lowercased) is not in the mapping, return data unchanged immediately —
+   before any other logic runs.** The missing-From-header path (step 5) is
+   equally gated: the envelope from address must be in the mapping, otherwise
+   data is returned unchanged.
 1. Split header block / body at the first `\r\n\r\n` (fallback `\n\n` for
    bare-LF messages; the chosen separator is reused on reassembly).
 2. Scan header lines for a line starting with `From:` (case-insensitive),
@@ -153,7 +162,8 @@ Table-driven unit tests for `rewriteFromHeader` in `from_rewrite_test.go`
 (project's first tests):
 
 - bare address, mapped → display name added
-- bare address, unmapped → unchanged
+- bare address, unmapped → unchanged (core premise)
+- nil mapping → unchanged (core premise)
 - existing different display name → unchanged
 - display name equals email address → rewritten
 - display name equals email, different case → rewritten
@@ -162,9 +172,9 @@ Table-driven unit tests for `rewriteFromHeader` in `from_rewrite_test.go`
 - missing From header + envelope from unmapped → unchanged
 - folded From header → handled, other headers/body untouched
 - multiple addresses in From, first matches → first rewritten, rest preserved
+- multiple addresses in From, first does NOT match the mapping → whole header unchanged (core premise)
 - CRLF vs LF line endings → preserved
-- nil mapping → unchanged
-- malformed From (unparseable) → unchanged, no panic
+- malformed From (unparseable) → unchanged, no panic (fail open)
 - body containing lines starting with "From:" (e.g. multipart) → body untouched
   (header scan must stop at the blank line)
 
