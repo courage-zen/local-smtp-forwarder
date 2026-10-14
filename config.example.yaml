@@ -8,3 +8,10 @@ upstream:
   username: "user@gmail.com"   # 账号
   password: "app-password"     # 密码 (Gmail需使用App Password)
   tls: "starttls"              # "starttls" | "implicit" | "none"
+
+# 可选：From 头显示名映射（发件人 email -> 显示名）。
+# 仅当 From 头没有显示名、或显示名就是裸地址时改写。
+# 不在映射中的发件人原样转发。
+from_display_names:
+  # alice@example.com: "张三"
+  # noreply@svc.example.com: "服务通知"

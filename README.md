@@ -58,6 +58,25 @@ All fields can also be set via environment variables, which override the file:
 | `MAILER_UPSTREAM_PASSWORD` | `upstream.password` |
 | `MAILER_UPSTREAM_TLS` | `upstream.tls` |
 
+### From display names
+
+Optional mapping of sender email addresses to display names. When a message's
+`From:` header has no display name (or the display name is just the bare
+address), the forwarder rewrites it to `From: Name <address>`. Senders not in
+the mapping are forwarded untouched, byte-for-byte.
+
+```yaml
+from_display_names:
+  alice@example.com: "张三"
+  noreply@svc.example.com: "服务通知"
+```
+
+Matching is case-insensitive. Non-ASCII display names are written as
+RFC 2047 encoded words (`=?utf-8?B?...?=`). This key is config-file-only:
+there is no environment-variable override for it. If the `From:` header is
+missing entirely, one is synthesized from the SMTP envelope sender when that
+address is in the mapping.
+
 ## Run
 
 ```bash
