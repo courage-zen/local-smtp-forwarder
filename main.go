@@ -13,7 +13,7 @@ func main() {
 	}
 
 	relay := NewRelay(cfg.Upstream)
-	backend := &Backend{relay: relay}
+	backend := &Backend{relay: relay, fromDisplayNames: cfg.FromDisplayNames}
 
 	s := smtp.NewServer(backend)
 	s.Addr = cfg.Listen

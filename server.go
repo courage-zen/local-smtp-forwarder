@@ -11,18 +11,20 @@ import (
 // Backend implements go-smtp's Backend interface. It accepts all connections
 // and forwards received emails to the upstream relay.
 type Backend struct {
-	relay *Relay
+	relay            *Relay
+	fromDisplayNames map[string]string
 }
 
 func (b *Backend) NewSession(c *smtp.Conn) (smtp.Session, error) {
-	return &Session{relay: b.relay}, nil
+	return &Session{relay: b.relay, fromDisplayNames: b.fromDisplayNames}, nil
 }
 
 // Session implements go-smtp's Session interface for a single SMTP transaction.
 type Session struct {
-	relay *Relay
-	from  string
-	to    []string
+	relay            *Relay
+	fromDisplayNames map[string]string
+	from             string
+	to               []string
 }
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
@@ -39,6 +41,13 @@ func (s *Session) Data(r io.Reader) error {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return fmt.Errorf("read email data: %w", err)
+	}
+
+	if len(s.fromDisplayNames) > 0 {
+		if rewritten, ok := rewriteFromHeader(data, s.from, s.fromDisplayNames); ok {
+			log.Printf("from rewritten: %s", s.from)
+			data = rewritten
+		}
 	}
 
 	if err := s.relay.Send(s.from, s.to, data); err != nil {
